@@ -92,11 +92,8 @@ func Loadyaml(suctun chan string, errtun chan string) string {
 		}
 	}
 	wg.Wait()
-	//判断队列是否为空
-	if len(suctun) == 0 && len(errtun) == 0 {
-		close(suctun)
-		close(errtun)
-	}
+	wg2.Add(1)
+	go closetun(suctun, errtun)
 	wg2.Wait()
 	return succ
 }
@@ -111,6 +108,20 @@ func Check(key string, config config, suctun chan string, errtun chan string) {
 		HttpCheck(config, suctun, errtun)
 	case "https":
 		HttpsCheck(config, suctun, errtun)
+	}
+}
+
+func closetun(suctun chan string, errtun chan string) {
+	for {
+		//判断队列是否为空
+		if len(suctun) == 0 && len(errtun) == 0 {
+			close(suctun)
+			close(errtun)
+			wg2.Done()
+			return
+		} else {
+			fmt.Printf("suctun中剩余数据量为: %v,errtun中剩余数据量为: %v", len(suctun), len(errtun))
+		}
 	}
 }
 
@@ -152,7 +163,7 @@ func DnsCheck(www string, suctun chan string, errtun chan string) bool {
 		return false
 	}
 	duration := time.Since(start)
-	y := fmt.Sprintf("DNS探测成功,花费时间为: ", duration)
+	y := fmt.Sprintf("DNS探测成功,花费时间为: %v", duration)
 	suctun <- y
 	return true
 }
@@ -173,10 +184,10 @@ func OfoPortCheck(config config, suctun chan string, errtun chan string) {
 				defer wg.Done()
 				con, err := net.DialTimeout("tcp", ip, time.Duration(1)*time.Second)
 				if err != nil {
-					n := fmt.Sprintf("端口未开放或无法访问", ip, ips.Name)
+					n := fmt.Sprintf("端口未开放或无法访问-%s,%s", ip, ips.Name)
 					errtun <- n
 				} else {
-					y := fmt.Sprintf("端口开放", ip, ips.Name)
+					y := fmt.Sprintf("端口开放-%s,%s", ip, ips.Name)
 					suctun <- y
 					//最后关掉端口
 					con.Close()
@@ -197,10 +208,10 @@ func PortCheck(config config, suctun chan string, errtun chan string) {
 					defer wg.Done()
 					con, err := net.DialTimeout("tcp", ip+":"+strconv.Itoa(port), time.Duration(1)*time.Second)
 					if err != nil {
-						n := fmt.Sprintf("端口未开放或无法访问", ip+":"+strconv.Itoa(port), server.Name)
+						n := fmt.Sprintf("端口未开放或无法访问-%s,%s", ip+":"+strconv.Itoa(port), server.Name)
 						errtun <- n
 					} else {
-						y := fmt.Sprintf("端口开放", ip+":"+strconv.Itoa(port), server.Name)
+						y := fmt.Sprintf("端口开放-%s,%s", ip+":"+strconv.Itoa(port), server.Name)
 						suctun <- y
 						//最后关掉端口
 						con.Close()
