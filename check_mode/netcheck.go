@@ -22,14 +22,6 @@ var formattedTime = currentTime.Format("2006-01-02-15-04-05.000")
 var succ = "suc-" + formattedTime + ".log"
 var erro = "err-" + formattedTime + ".log"
 
-// 根据运行时间创建两个日志文件
-var suclog, _ = os.Create(succ)
-var errlog, _ = os.Create(erro)
-
-// 创建两个日志记录器,开头设置prefix
-var successlog = log.New(suclog, "SUCESS: ", log.LstdFlags)
-var errorlog = log.New(errlog, "ERROR: ", log.LstdFlags)
-
 // 定义waitgroup
 var wg sync.WaitGroup
 var wg2 sync.WaitGroup
@@ -52,10 +44,31 @@ type config struct {
 	O_F_O_servers []PortCheckYaml `mapstructure:"o-f-o-servers"`
 }
 
+// 返回变量
+func Successlog() string {
+	return succ
+}
+
 // 加载参数
-func Loadyaml(suctun chan string, errtun chan string) string {
+func Loadyaml(suctun chan string, errtun chan string) {
+	// 根据运行时间创建两个日志文件
+	var suclog, err = os.Create(succ)
+	if err != nil {
+		fmt.Println("创建suclog文件失败", err)
+		return
+	}
+	var errlog, err2 = os.Create(erro)
+	if err2 != nil {
+		fmt.Println("创建errlog文件失败", err2)
+		return
+	}
+
+	// 创建两个日志记录器,开头设置prefix
+	var successlog = log.New(suclog, "SUCESS: ", log.LstdFlags)
+	var errorlog = log.New(errlog, "ERROR: ", log.LstdFlags)
+
 	wg2.Add(1)
-	go logger(errtun, suctun)
+	go logger(errtun, suctun, successlog, errorlog)
 	defer suclog.Close()
 	defer errlog.Close()
 
@@ -63,7 +76,7 @@ func Loadyaml(suctun chan string, errtun chan string) string {
 	dir, err := os.ReadDir(configdir)
 	if err != nil {
 		log.Println("目录不存在")
-		return ""
+		return
 	}
 	//dns检查单独进行
 	DnsCheck("ddm.sinotruk.com", suctun, errtun)
@@ -71,7 +84,7 @@ func Loadyaml(suctun chan string, errtun chan string) string {
 	for _, file := range dir {
 		//是否以yaml结尾
 		if !strings.HasSuffix(file.Name(), "yaml") {
-			return ""
+			return
 		}
 		//用filepath.Join连接起来，你会得到一个指向otherconfig目录下file.Name()所指定文件的完整路径
 		pathjoin := filepath.Join(configdir, file.Name())
@@ -84,7 +97,7 @@ func Loadyaml(suctun chan string, errtun chan string) string {
 		err := viper.Unmarshal(&config)
 		if err != nil {
 			log.Println("viper解析失败")
-			return ""
+			return
 		}
 		keys := viper.AllSettings()
 		for key, _ := range keys {
@@ -95,7 +108,7 @@ func Loadyaml(suctun chan string, errtun chan string) string {
 	wg2.Add(1)
 	go closetun(suctun, errtun)
 	wg2.Wait()
-	return succ
+	return
 }
 
 func Check(key string, config config, suctun chan string, errtun chan string) {
@@ -115,42 +128,37 @@ func closetun(suctun chan string, errtun chan string) {
 	for {
 		//判断队列是否为空
 		if len(suctun) == 0 && len(errtun) == 0 {
-			close(suctun)
-			close(errtun)
+			//suctun.close()
+			//errtun.close()
+			suctun <- "已取完通道内容"
+			fmt.Println("已取完通道内容\n")
 			wg2.Done()
 			return
 		} else {
-			fmt.Printf("suctun中剩余数据量为: %v,errtun中剩余数据量为: %v", len(suctun), len(errtun))
+			fmt.Printf("suctun中剩余数据量为: %v,errtun中剩余数据量为: %v\n", len(suctun), len(errtun))
 		}
 	}
 }
 
-func logger(errtun chan string, suctun chan string) {
-	checkslice := make([]string, 60)
+func logger(errtun chan string, suctun chan string, successlog *log.Logger, errorlog *log.Logger) {
 	for {
-		if checkslice[0] == "suctun已关闭" && checkslice[1] == "errtun已关闭" {
-			fmt.Println("通道关闭")
-			wg2.Done()
-			return
-		}
 		select {
 		case s, ok := <-suctun:
-			if !ok {
-				checkslice[0] = "suctun已关闭"
+			if s == "已取完通道内容" {
+				wg2.Done()
+				return
+			} else if !ok {
 				continue
-			} else {
-				successlog.Println(s)
 			}
+			successlog.Println(s)
+
 		case s2, ok2 := <-errtun:
 			if !ok2 {
-				checkslice[1] = "errtun已关闭"
 				continue
-			} else {
-				errorlog.Println(s2)
 			}
+			errorlog.Println(s2)
 		}
 	}
-
 }
 
 // dns探测

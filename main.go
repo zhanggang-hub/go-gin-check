@@ -49,7 +49,8 @@ func _sendmessage(c *gin.Context) {
 
 // 发送文件接口suc.log
 func _sendfile(c *gin.Context) {
-	succ := check_mode.Loadyaml(suctun, errtun)
+	check_mode.Loadyaml(suctun, errtun)
+	succ := check_mode.Successlog()
 	//发送错误信息，超过2048字节后发送错误日志
 	if msg, err := check_mode.Postfile(succ); err != nil {
 		c.JSON(500, Response{1, msg, err, "请检查网络和url是否正确"})
@@ -60,12 +61,9 @@ func _sendfile(c *gin.Context) {
 }
 
 func main() {
-	//router := gin.Default()
-	//router.GET("/", _geterr)
-	//router.GET("/sendmsg", _sendmessage)
-	//router.GET("/sendfile", _sendfile)
-	//router.Run(":8088")
-	// succ的处理线程
-	check_mode.Loadyaml(suctun, errtun)
-
+	router := gin.Default()
+	router.GET("/getall", _geterr)
+	router.GET("/sendmsg", _sendmessage)
+	router.GET("/sendfile", _sendfile)
+	router.Run(":8088")
 }
