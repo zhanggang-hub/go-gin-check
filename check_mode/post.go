@@ -29,6 +29,7 @@ func ErrLog() (string, error) {
 	}
 	//输出文本的引号替换
 	string := strings.Replace(string(errlog), "\"", " ", -1)
+	//string = strings.Replace(string, "\n", "||", -1)
 	return string, nil
 }
 
@@ -37,11 +38,13 @@ func SendMessage() (string, error) {
 	if err2 != nil {
 		return "err.log文件不存在", err2
 	}
+	fmt.Println(errlog)
 	if len(errlog) == 0 {
 		return "err.log文件内容为空", nil
 	}
 	//输出文本的引号替换
 	string := strings.Replace(string(errlog), "\"", " ", -1)
+	//string = strings.Replace(string, "\n", "||", -1)
 	//大于2048字节用文本输出
 	if len(string) > 2048 {
 		Postfile(erro)

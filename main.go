@@ -14,12 +14,11 @@ import (
 // 定义waitgroup
 var wg sync.WaitGroup
 
-type Response struct {
-	Code  int    `json:"code"`
-	Data  string `json:"data"`
-	Error error  `json:"error"`
-	Msg   string `json:"msg"`
-}
+//type Response struct {
+//	Code int
+//	Data string
+//	Msg  string
+//}
 
 var suctun = make(chan string, 60)
 var errtun = make(chan string, 60)
@@ -29,9 +28,9 @@ func _geterr(c *gin.Context) {
 	//巡检程序
 	check_mode.Loadyaml(suctun, errtun)
 	if errlog, err := check_mode.ErrLog(); err != nil {
-		c.JSON(500, Response{1, errlog, err, "执行错误"})
+		c.String(500, errlog, "执行错误")
 	} else {
-		c.JSON(200, Response{0, errlog, nil, "执行成功"})
+		c.String(200, errlog, "执行错误")
 	}
 
 }
@@ -41,9 +40,9 @@ func _sendmessage(c *gin.Context) {
 	check_mode.Loadyaml(suctun, errtun)
 	//发送错误信息，超过2048字节后发送错误日志
 	if msg, err := check_mode.SendMessage(); err != nil {
-		c.JSON(500, Response{1, msg, err, "请检查网络和url是否正确"})
+		c.String(500, msg, "请检查网络和url是否正确")
 	} else {
-		c.JSON(200, Response{0, msg, nil, "请检查企业微信信息发送情况"})
+		c.String(200, msg, "请检查企业微信信息发送情况")
 	}
 }
 
@@ -53,9 +52,9 @@ func _sendfile(c *gin.Context) {
 	succ := check_mode.Successlog()
 	//发送错误信息，超过2048字节后发送错误日志
 	if msg, err := check_mode.Postfile(succ); err != nil {
-		c.JSON(500, Response{1, msg, err, "请检查网络和url是否正确"})
+		c.String(500, msg, "请检查网络和url是否正确")
 	} else {
-		c.JSON(200, Response{0, msg, nil, "请检查企业微信信息发送情况"})
+		c.String(200, msg, "请检查企业微信信息发送情况")
 	}
 
 }
